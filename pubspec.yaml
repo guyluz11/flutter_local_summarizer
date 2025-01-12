@@ -11,6 +11,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  onnxruntime: ^1.4.1
+  langchain_tiktoken:
+    git:
+      url: https://github.com/guyluz11/langchain_tiktoken.git
+      ref: main
 
 dev_dependencies:
   # Collection of lint rules for Dart and Flutter projects.
@@ -25,3 +30,5 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/models/
