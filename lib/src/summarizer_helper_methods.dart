@@ -1,12 +1,38 @@
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_local_summarizer/src/common_functions.dart';
+import 'package:flutter_local_summarizer/src/model_handler.dart';
 import 'package:langchain_tiktoken/langchain_tiktoken.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
 class SummarizerHelperMethods {
-  static void init() => OrtEnv.instance.init();
+  static String flasscoDecoderModelLocation =
+      'assets/models/flassco_decoder_model.onnx';
+  static String flasscoEncoderModelLocation =
+      'assets/models/flassco_encoder_model.onnx';
+  static Uri flasscoDecoderModelUrl = Uri.parse(
+    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/decoder_model.onnx?download=true',
+  );
+  static Uri flasscoEncoderModelUrl = Uri.parse(
+    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/encoder_model.onnx?download=true',
+  );
+
+  static late Uint8List encoderModelLoad;
+  static late Uint8List decoderModelLoad;
+
+  static Future init() async {
+    OrtEnv.instance.init();
+    final Future<Uint8List> decoderModelLoadTemp = ModelHandler.loadModelBytes(
+      flasscoDecoderModelUrl,
+      flasscoDecoderModelLocation,
+    );
+    final Future<Uint8List> encoderModelLoadTemp = ModelHandler.loadModelBytes(
+      flasscoEncoderModelUrl,
+      flasscoEncoderModelLocation,
+    );
+    decoderModelLoad = await decoderModelLoadTemp;
+    encoderModelLoad = await encoderModelLoadTemp;
+  }
 
   Future<String?> flasscoSummarize(
     String inputText, {
@@ -23,20 +49,9 @@ class SummarizerHelperMethods {
     return summeryOutput;
   }
 
-  Future<OrtSession> _loadDecoderSession() async {
+  Future<OrtSession> _loadSession(Uint8List encoderList) async {
     final sessionOptions = OrtSessionOptions();
-    const assetFileName = 'assets/models/flassco_decoder_model.onnx';
-    final rawAssetFile = await rootBundle.load(assetFileName);
-    final bytes = rawAssetFile.buffer.asUint8List();
-    return OrtSession.fromBuffer(bytes, sessionOptions);
-  }
-
-  Future<OrtSession> _loadEncoderSession() async {
-    final sessionOptions = OrtSessionOptions();
-    const assetFileName = 'assets/models/flassco_encoder_model.onnx';
-    final rawAssetFile = await rootBundle.load(assetFileName);
-    final bytes = rawAssetFile.buffer.asUint8List();
-    return OrtSession.fromBuffer(bytes, sessionOptions);
+    return OrtSession.fromBuffer(encoderList, sessionOptions);
   }
 
   Future<String?> _summery(
@@ -137,7 +152,7 @@ class SummarizerHelperMethods {
     };
 
     printInDebug('Start generatEncode');
-    final OrtSession session = await _loadEncoderSession();
+    final OrtSession session = await _loadSession(encoderModelLoad);
     outputs = await session.runAsync(runOptions, inputs);
     printInDebug('Done generatEncode');
 
@@ -169,7 +184,7 @@ class SummarizerHelperMethods {
     required int eosTokenId, // End-of-sequence token ID
     Function(int)? progress,
   }) async {
-    final OrtSession session = await _loadDecoderSession();
+    final OrtSession session = await _loadSession(decoderModelLoad);
     final List<int> currentOutput = []; // Stores the generated token IDs
 
     // Start with the initial decoder input (e.g., [BOS] token ID)

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_summarizer/flutter_local_summarizer.dart';
 import 'package:summarizer_example/helpers/texts.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SummarizerHelperMethods.init();
+  await SummarizerHelperMethods.init();
   runApp(
     MaterialApp(
       home: TextSummarization(),
