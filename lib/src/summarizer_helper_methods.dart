@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_local_summarizer/src/common_functions.dart';
 import 'package:langchain_tiktoken/langchain_tiktoken.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
@@ -44,7 +45,7 @@ class SummarizerHelperMethods {
     Function(int)? progress,
   }) async {
     progress?.call(0);
-    final Tiktoken tiktoken = encodingForModel("t5");
+    final Tiktoken tiktoken = encodingForModel('t5');
     final Uint32List encodedUintList = tiktoken.encode(text);
 
     final List<List<int>> inputList = [encodedUintList.toList()];
@@ -56,7 +57,8 @@ class SummarizerHelperMethods {
     final OrtValueTensor attentionMaskOrt =
         OrtValueTensor.createTensorWithDataList(attentionMask);
     final OrtRunOptions runOptions = OrtRunOptions();
-    print('Start');
+
+    printInDebug('Start');
     final List<List<List<double>>>? outputs = await _generatEncode(
       attentionMaskOrt: attentionMaskOrt,
       inputOrt: inputOrt,
@@ -64,7 +66,7 @@ class SummarizerHelperMethods {
     );
 
     if (outputs == null) {
-      print('There was error decoding');
+      printInDebug('There was error decoding');
       return null;
     }
     final List<List<Float32List>> floatOutputs = _convertToFloat32(outputs);
@@ -72,10 +74,10 @@ class SummarizerHelperMethods {
     final OrtValueTensor encodeOutput =
         OrtValueTensor.createTensorWithDataList(floatOutputs);
 
-    final int eosTokenId =
+    const int eosTokenId =
         1; // Example [EOS] token ID (replace with your actual ID)
 
-    // print(outputs);
+    // printInDebug(outputs);
     final List<int>? decodeInts = await generateDecode(
       attentionMaskOrt: attentionMaskOrt,
       inputOrt: inputOrt,
@@ -87,7 +89,7 @@ class SummarizerHelperMethods {
     );
 
     if (decodeInts == null) {
-      print('There was error decodeInts');
+      printInDebug('There was error decodeInts');
       return null;
     }
 
@@ -107,9 +109,11 @@ class SummarizerHelperMethods {
   List<List<Float32List>> _convertToFloat32(List<List<List<double>>> data) {
     // Convert the nested list to a nested Float32List
     return data
-        .map((outerList) => outerList
-            .map((innerList) => Float32List.fromList(innerList))
-            .toList())
+        .map(
+          (outerList) => outerList
+              .map((innerList) => Float32List.fromList(innerList))
+              .toList(),
+        )
         .toList();
   }
 
@@ -132,10 +136,10 @@ class SummarizerHelperMethods {
       'attention_mask': attentionMaskOrt,
     };
 
-    print('Start generatEncode');
+    printInDebug('Start generatEncode');
     final OrtSession session = await _loadEncoderSession();
     outputs = await session.runAsync(runOptions, inputs);
-    print('Done generatEncode');
+    printInDebug('Done generatEncode');
 
     if (outputs == null || outputs.isEmpty) {
       return null;
@@ -148,9 +152,9 @@ class SummarizerHelperMethods {
     final List<List<List<double>>> output0Value =
         output0.value! as List<List<List<double>>>;
 
-    outputs.forEach((element) {
+    for (final element in outputs) {
       element?.release();
-    });
+    }
     session.release();
 
     return output0Value;
@@ -170,11 +174,11 @@ class SummarizerHelperMethods {
 
     // Start with the initial decoder input (e.g., [BOS] token ID)
     final List<int> initialDecoderInput = [
-      inputOrt.value.first[0] as int
+      (inputOrt.value as List<List<int>>).first[0],
     ]; // Assuming the first token
     currentOutput.addAll(initialDecoderInput);
 
-    print('Start generateDecode');
+    printInDebug('Start generateDecode');
 
     // Iterate up to the maximum summary length
     for (int i = 0; i < maxSummaryLength; i++) {
@@ -191,14 +195,14 @@ class SummarizerHelperMethods {
           await session.runAsync(runOptions, inputs);
 
       if (outputs == null || outputs.isEmpty) {
-        print('Decoder outputs are empty!');
+        printInDebug('Decoder outputs are empty!');
         break;
       }
 
       // Extract logits and find the next token
       final OrtValue? output0 = outputs[0];
       if (output0 == null) {
-        print('Decoder output[0] is null!');
+        printInDebug('Decoder output[0] is null!');
         break;
       }
       final List<List<List<double>>> output0Value =
@@ -210,17 +214,17 @@ class SummarizerHelperMethods {
       currentOutput.add(nextTokenId);
 
       // Release outputs to free resources
-      outputs.forEach((element) {
+      for (final element in outputs) {
         element?.release();
-      });
+      }
 
       // Stop if the [EOS] token is generated
       if (nextTokenId == eosTokenId) {
-        print('EOS token encountered. Stopping decoding.');
+        printInDebug('EOS token encountered. Stopping decoding.');
         break;
       }
     }
-    print('Done generateDecode');
+    printInDebug('Done generateDecode');
 
     session.release();
 
@@ -231,7 +235,7 @@ class SummarizerHelperMethods {
   List<int> _npArgmax(List<List<double>> logits) {
     final List<int> maxIndices = [];
 
-    for (List<double> innerList in logits) {
+    for (final List<double> innerList in logits) {
       int maxIndex = 0;
       double maxValue = innerList[0];
 
@@ -248,19 +252,19 @@ class SummarizerHelperMethods {
     return maxIndices;
   }
 
-  String _preprocessText(String text) {
-    // Remove consecutive punctuation (e.g., `...,`)
-    text = text.replaceAll(RegExp(r'[,.]{2,}'), ' ');
-
-    // Remove extra spaces
-    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-
-    // Remove non-ASCII characters
-    text = text.replaceAll(RegExp(r'[^\x00-\x7F]+'), ' ');
-
-    // Lowercase the text (optional)
-    text = text.toLowerCase();
-
-    return text;
-  }
+  // String _preprocessText(String text) {
+  //   // Remove consecutive punctuation (e.g., `...,`)
+  //   text = text.replaceAll(RegExp(r'[,.]{2,}'), ' ');
+  //
+  //   // Remove extra spaces
+  //   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  //
+  //   // Remove non-ASCII characters
+  //   text = text.replaceAll(RegExp(r'[^\x00-\x7F]+'), ' ');
+  //
+  //   // Lowercase the text (optional)
+  //   text = text.toLowerCase();
+  //
+  //   return text;
+  // }
 }
