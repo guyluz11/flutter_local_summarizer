@@ -5,6 +5,23 @@ import 'package:langchain_tiktoken/langchain_tiktoken.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
 class SummarizerHelperMethods {
+  static void init() => OrtEnv.instance.init();
+
+  Future<String?> flasscoSummarize(
+    String inputText, {
+    int maxSummaryLength = 80,
+    Function(int)? progress,
+  }) async {
+    // final String preprocessTextVar = _preprocessText(inputText);
+    final String? summeryOutput = await _summery(
+      inputText.toLowerCase(),
+      maxSummaryLength: maxSummaryLength,
+      progress: progress,
+    );
+
+    return summeryOutput;
+  }
+
   Future<OrtSession> _loadDecoderSession() async {
     final sessionOptions = OrtSessionOptions();
     const assetFileName = 'assets/models/flassco_decoder_model.onnx';
@@ -21,12 +38,15 @@ class SummarizerHelperMethods {
     return OrtSession.fromBuffer(bytes, sessionOptions);
   }
 
-  Future<String?> _summery(String text, {int maxSummaryLength = 70}) async {
+  Future<String?> _summery(
+    String text, {
+    int maxSummaryLength = 70,
+    Function(int)? progress,
+  }) async {
+    progress?.call(0);
     final Tiktoken tiktoken = encodingForModel("t5");
     final Uint32List encodedUintList = tiktoken.encode(text);
 
-    // print('encodedList');
-    // print(encodedList);
     final List<List<int>> inputList = [encodedUintList.toList()];
 
     final List<List<int>> attentionMask = _createAttentionMask(inputList);
@@ -63,6 +83,7 @@ class SummarizerHelperMethods {
       encodeOutput: encodeOutput,
       maxSummaryLength: maxSummaryLength,
       eosTokenId: eosTokenId,
+      progress: progress,
     );
 
     if (decodeInts == null) {
@@ -76,6 +97,8 @@ class SummarizerHelperMethods {
     attentionMaskOrt.release();
     runOptions.release();
     encodeOutput.release();
+
+    progress?.call(100);
 
     return decodeString;
   }
@@ -140,6 +163,7 @@ class SummarizerHelperMethods {
     required OrtRunOptions runOptions,
     required int maxSummaryLength, // Maximum summary length
     required int eosTokenId, // End-of-sequence token ID
+    Function(int)? progress,
   }) async {
     final OrtSession session = await _loadDecoderSession();
     final List<int> currentOutput = []; // Stores the generated token IDs
@@ -154,6 +178,7 @@ class SummarizerHelperMethods {
 
     // Iterate up to the maximum summary length
     for (int i = 0; i < maxSummaryLength; i++) {
+      progress?.call((((i + 1) / maxSummaryLength) * 100).toInt());
       // Prepare inputs for the decoder
       final inputs = {
         'input_ids': OrtValueTensor.createTensorWithDataList([currentOutput]),
@@ -200,31 +225,6 @@ class SummarizerHelperMethods {
     session.release();
 
     return currentOutput;
-  }
-
-  List<List<int>> _npConcatenate(
-      List<List<int>> decoderInputIds, List<List<int>> newToken) {
-    // Ensure both lists are non-empty and have compatible dimensions
-    if (decoderInputIds.isEmpty) {
-      return newToken;
-    }
-
-    for (int i = 0; i < decoderInputIds.length; i++) {
-      decoderInputIds[i].addAll(newToken[i]);
-    }
-
-    return decoderInputIds;
-  }
-
-  Future<String?> flasscoSummarize(
-    String inputText, {
-    int maxSummaryLength = 70,
-  }) async {
-    final String preprocessTextVar = _preprocessText(inputText);
-    final String? summeryOutput =
-        await _summery(preprocessTextVar, maxSummaryLength: maxSummaryLength);
-
-    return summeryOutput ?? 'Error summarizing';
   }
 
   /// Using axis -1
