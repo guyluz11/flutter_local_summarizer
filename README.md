@@ -12,4 +12,4 @@ https://pub.dev/packages/onnxruntime
 
 1. Call `await SummarizerHelperMethods.init();` and wait till finish.
 2. Run `SummarizerHelperMethods().flasscoSummarize(text)` with the text you desire to summarize. you can also pass `progress:` and pass a progress callback.
-3. Done, So simple there is no more to do :)
+3. Done, So simple there is no more to do 😁👍
