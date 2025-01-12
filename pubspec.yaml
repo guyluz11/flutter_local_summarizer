@@ -1,0 +1,27 @@
+name: flutter_local_summarizer
+description: "Flutter package to summarize text using Falconsai/text_summarization"
+version: 0.0.1
+repository: https://github.com/guyluz11/flutter_local_summarizer
+homepage:
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  # Collection of lint rules for Dart and Flutter projects.
+  lint: ^2.3.0
+  test: ^1.25.2
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
