@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_summarizer/flutter_local_summarizer.dart';
 import 'package:summarizer_example/helpers/texts.dart';
 
+late SummarizerHelperMethods summarizerHelperMethods;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SummarizerHelperMethods.init();
+  summarizerHelperMethods = SummarizerHelperMethods();
+  await summarizerHelperMethods.init();
   runApp(
     MaterialApp(
       home: TextSummarization(),
@@ -21,13 +24,13 @@ class _TextSummarizationState extends State<TextSummarization> {
   String summary = '';
   int progressVar = 0;
 
-  Future getSummery({String? text}) async {
+  Future getSummary({String? text}) async {
     setState(() {
       summary = 'Generating summary...';
     });
 
     final String? summarizedText =
-        await SummarizerHelperMethods().flasscoSummarize(
+        await summarizerHelperMethods.flasscoSummarize(
       text ?? getLongText,
       progress: progress,
     );
@@ -54,7 +57,7 @@ class _TextSummarizationState extends State<TextSummarization> {
         child: Column(
           children: [
             TextButton(
-              onPressed: getSummery,
+              onPressed: getSummary,
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.all<Color>(Colors.grey),
               ),

@@ -1,37 +1,42 @@
 import 'dart:typed_data';
 
 import 'package:flutter_local_summarizer/src/common_functions.dart';
-import 'package:flutter_local_summarizer/src/model_handler.dart';
-import 'package:langchain_tiktoken/langchain_tiktoken.dart';
+import 'package:flutter_local_summarizer/src/model.dart';
+import 'package:flutter_local_summarizer/src/tokenizer.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
 class SummarizerHelperMethods {
-  static String flasscoDecoderModelLocation =
-      'assets/models/flassco_decoder_model.onnx';
+  static late Uint8List encoderModelLoad;
   static String flasscoEncoderModelLocation =
       'assets/models/flassco_encoder_model.onnx';
-  static Uri flasscoDecoderModelUrl = Uri.parse(
-    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/decoder_model.onnx?download=true',
-  );
+
   static Uri flasscoEncoderModelUrl = Uri.parse(
     'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/encoder_model.onnx?download=true',
   );
 
-  static late Uint8List encoderModelLoad;
-  static late Uint8List decoderModelLoad;
+  static String flasscoDecoderModelLocation =
+      'assets/models/flassco_decoder_model.onnx';
+  static Uri flasscoDecoderModelUrl = Uri.parse(
+    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/decoder_model.onnx?download=true',
+  );
 
-  static Future init() async {
+  late Model decoderModel;
+  late Model encoderModel;
+
+  Future init() async {
     OrtEnv.instance.init();
-    final Future<Uint8List> decoderModelLoadTemp = ModelHandler.loadModelBytes(
-      flasscoDecoderModelUrl,
-      flasscoDecoderModelLocation,
+    decoderModel = Model(
+      url: flasscoDecoderModelUrl,
+      saveLocation: flasscoDecoderModelLocation,
     );
-    final Future<Uint8List> encoderModelLoadTemp = ModelHandler.loadModelBytes(
-      flasscoEncoderModelUrl,
-      flasscoEncoderModelLocation,
+    encoderModel = Model(
+      url: flasscoEncoderModelUrl,
+      saveLocation: flasscoEncoderModelLocation,
     );
-    decoderModelLoad = await decoderModelLoadTemp;
-    encoderModelLoad = await encoderModelLoadTemp;
+    await Future.wait([
+      decoderModel.innit(),
+      encoderModel.innit(),
+    ]);
   }
 
   Future<String?> flasscoSummarize(
@@ -40,13 +45,13 @@ class SummarizerHelperMethods {
     Function(int)? progress,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
-    final String? summeryOutput = await _summery(
+    final String? summaryOutput = await _summary(
       inputText.toLowerCase(),
       maxSummaryLength: maxSummaryLength,
       progress: progress,
     );
 
-    return summeryOutput;
+    return summaryOutput;
   }
 
   Future<OrtSession> _loadSession(Uint8List encoderList) async {
@@ -54,14 +59,14 @@ class SummarizerHelperMethods {
     return OrtSession.fromBuffer(encoderList, sessionOptions);
   }
 
-  Future<String?> _summery(
+  Future<String?> _summary(
     String text, {
     int maxSummaryLength = 70,
     Function(int)? progress,
   }) async {
     progress?.call(0);
-    final Tiktoken tiktoken = encodingForModel('t5');
-    final Uint32List encodedUintList = tiktoken.encode(text);
+    final Tokenizer tokenizer = Tokenizer();
+    final Uint32List encodedUintList = tokenizer.encode(text);
 
     final List<List<int>> inputList = [encodedUintList.toList()];
 
@@ -108,7 +113,7 @@ class SummarizerHelperMethods {
       return null;
     }
 
-    final String decodeString = tiktoken.decode(decodeInts);
+    final String decodeString = tokenizer.decode(decodeInts);
 
     inputOrt.release();
     attentionMaskOrt.release();
@@ -180,24 +185,24 @@ class SummarizerHelperMethods {
     required OrtValueTensor attentionMaskOrt,
     required OrtValueTensor encodeOutput,
     required OrtRunOptions runOptions,
-    required int maxSummaryLength, // Maximum summary length
-    required int eosTokenId, // End-of-sequence token ID
+    required int maxSummaryLength,
+    required int eosTokenId,
     Function(int)? progress,
   }) async {
-    final OrtSession session = await _loadSession(decoderModelLoad);
-    final List<int> currentOutput = []; // Stores the generated token IDs
+    final OrtSession session = await _loadSession(decoderModel.biteList);
+    final List<int> currentOutput = [];
 
-    // Start with the initial decoder input (e.g., [BOS] token ID)
+    // Start with the initial decoder input
     final List<int> initialDecoderInput = [
       (inputOrt.value as List<List<int>>).first[0],
-    ]; // Assuming the first token
+    ];
     currentOutput.addAll(initialDecoderInput);
 
     printInDebug('Start generateDecode');
 
-    // Iterate up to the maximum summary length
     for (int i = 0; i < maxSummaryLength; i++) {
       progress?.call((((i + 1) / maxSummaryLength) * 100).toInt());
+
       // Prepare inputs for the decoder
       final inputs = {
         'input_ids': OrtValueTensor.createTensorWithDataList([currentOutput]),
@@ -233,14 +238,14 @@ class SummarizerHelperMethods {
         element?.release();
       }
 
-      // Stop if the [EOS] token is generated
+      // Stop if the EOS token is generated
       if (nextTokenId == eosTokenId) {
         printInDebug('EOS token encountered. Stopping decoding.');
         break;
       }
     }
-    printInDebug('Done generateDecode');
 
+    printInDebug('Done generateDecode');
     session.release();
 
     return currentOutput;
@@ -269,17 +274,17 @@ class SummarizerHelperMethods {
 
   // String _preprocessText(String text) {
   //   // Remove consecutive punctuation (e.g., `...,`)
-  //   text = text.replaceAll(RegExp(r'[,.]{2,}'), ' ');
+  //   String tempText = text.replaceAll(RegExp('[,.]{2,}'), ' ');
   //
   //   // Remove extra spaces
-  //   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  //   tempText = tempText.replaceAll(RegExp(r'\s+'), ' ').trim();
   //
   //   // Remove non-ASCII characters
-  //   text = text.replaceAll(RegExp(r'[^\x00-\x7F]+'), ' ');
+  //   tempText = tempText.replaceAll(RegExp(r'[^\x00-\x7F]+'), ' ');
   //
   //   // Lowercase the text (optional)
-  //   text = text.toLowerCase();
+  //   tempText = tempText.toLowerCase();
   //
-  //   return text;
+  //   return tempText;
   // }
 }
