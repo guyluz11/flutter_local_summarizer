@@ -17,5 +17,3 @@ Investigation Division. Seven of the men are from so-called "red-flagged" countr
 Her eighth husband, Rashid Rajput, was deported in 2006 to his native Pakistan after an investigation by the Joint Terrorism Task Force.
 If convicted, Barrientos faces up to four years in prison.  Her next court appearance is scheduled for May 18.
 """;
-
-// """Micro nuclear diamond battery other buzzwords? UKs Atomic Energy Authority and the University of Bristol have just announced that their scientists have created a diamond battery with nuclear stuff inside that creates a tiny little bit of power. The way it gets this power is from a little bit of carbon 14, the very same radioactive isotope that we use to carbon date ancient items. Carbon 14 goes through beta or electron decay. The scientists use this fact to create a beta voltaic cell. Its kind of like a solar cell, but instead of photons, it uses those electrons to create a tiny amount of electricity. Why the diamond? Well, its there to make the battery basically indestructible and to shield anyone outside of it from the little amount of radiation.""";

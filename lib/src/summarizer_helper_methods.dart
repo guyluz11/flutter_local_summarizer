@@ -32,8 +32,9 @@ class SummarizerHelperMethods {
     Function(int)? progress,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
+    final String preprocessTextVar = inputText.toLowerCase();
     final String? summaryOutput = await _summary(
-      inputText.toLowerCase(),
+      preprocessTextVar,
       maxSummaryLength: maxSummaryLength,
       progress: progress,
     );
@@ -55,7 +56,11 @@ class SummarizerHelperMethods {
     final Tokenizer tokenizer = Tokenizer();
     final Uint32List encodedUintList = tokenizer.encode(text);
 
-    final List<List<int>> inputList = [encodedUintList.toList()];
+    final List<List<int>> inputList = [
+      [tokenizer.getPadTokenId()] +
+          encodedUintList.toList() +
+          [tokenizer.getEosTokenId()],
+    ];
 
     final List<List<int>> attentionMask = _createAttentionMask(inputList);
 
@@ -81,23 +86,31 @@ class SummarizerHelperMethods {
     final OrtValueTensor encodeOutput =
         OrtValueTensor.createTensorWithDataList(floatOutputs);
 
-    const int eosTokenId =
-        1; // Example [EOS] token ID (replace with your actual ID)
-
     // printInDebug(outputs);
-    final List<int>? decodeInts = await generateDecode(
+    List<int>? decodeInts = await generateDecode(
       attentionMaskOrt: attentionMaskOrt,
       inputOrt: inputOrt,
       runOptions: runOptions,
       encodeOutput: encodeOutput,
       maxSummaryLength: maxSummaryLength,
-      eosTokenId: eosTokenId,
+      eosTokenId: tokenizer.getEosTokenId(),
       progress: progress,
     );
 
     if (decodeInts == null) {
       printInDebug('There was error decodeInts');
       return null;
+    }
+
+    // Remove start token
+    if (decodeInts[0] == tokenizer.getPadTokenId()) {
+      decodeInts = decodeInts.sublist(1);
+    }
+
+    // Remove start token
+    final int decodeIntsLength = decodeInts.length;
+    if (decodeInts[decodeIntsLength - 1] == tokenizer.getEosTokenId()) {
+      decodeInts = decodeInts.sublist(0, decodeIntsLength - 1);
     }
 
     final String decodeString = tokenizer.decode(decodeInts);
