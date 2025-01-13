@@ -1,37 +1,24 @@
 import 'dart:typed_data';
 
 import 'package:flutter_local_summarizer/src/common_functions.dart';
+import 'package:flutter_local_summarizer/src/external_links.dart';
 import 'package:flutter_local_summarizer/src/model.dart';
 import 'package:flutter_local_summarizer/src/tokenizer.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
 class SummarizerHelperMethods {
-  static late Uint8List encoderModelLoad;
-  static String flasscoEncoderModelLocation =
-      'assets/models/flassco_encoder_model.onnx';
-
-  static Uri flasscoEncoderModelUrl = Uri.parse(
-    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/encoder_model.onnx?download=true',
-  );
-
-  static String flasscoDecoderModelLocation =
-      'assets/models/flassco_decoder_model.onnx';
-  static Uri flasscoDecoderModelUrl = Uri.parse(
-    'https://huggingface.co/Falconsai/text_summarization/resolve/main/onnx/decoder_model.onnx?download=true',
-  );
-
   late Model decoderModel;
   late Model encoderModel;
 
   Future init() async {
     OrtEnv.instance.init();
     decoderModel = Model(
-      url: flasscoDecoderModelUrl,
-      saveLocation: flasscoDecoderModelLocation,
+      url: ExternalLinks.flasscoDecoderModelUrl,
+      saveLocation: ExternalLinks.flasscoDecoderModelLocation,
     );
     encoderModel = Model(
-      url: flasscoEncoderModelUrl,
-      saveLocation: flasscoEncoderModelLocation,
+      url: ExternalLinks.flasscoEncoderModelUrl,
+      saveLocation: ExternalLinks.flasscoEncoderModelLocation,
     );
     await Future.wait([
       decoderModel.innit(),
@@ -45,8 +32,9 @@ class SummarizerHelperMethods {
     Function(int)? progress,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
+    final String preprocessTextVar = inputText.toLowerCase();
     final String? summaryOutput = await _summary(
-      inputText.toLowerCase(),
+      preprocessTextVar,
       maxSummaryLength: maxSummaryLength,
       progress: progress,
     );
@@ -68,7 +56,11 @@ class SummarizerHelperMethods {
     final Tokenizer tokenizer = Tokenizer();
     final Uint32List encodedUintList = tokenizer.encode(text);
 
-    final List<List<int>> inputList = [encodedUintList.toList()];
+    final List<List<int>> inputList = [
+      [tokenizer.getPadTokenId()] +
+          encodedUintList.toList() +
+          [tokenizer.getEosTokenId()],
+    ];
 
     final List<List<int>> attentionMask = _createAttentionMask(inputList);
 
@@ -94,23 +86,31 @@ class SummarizerHelperMethods {
     final OrtValueTensor encodeOutput =
         OrtValueTensor.createTensorWithDataList(floatOutputs);
 
-    const int eosTokenId =
-        1; // Example [EOS] token ID (replace with your actual ID)
-
     // printInDebug(outputs);
-    final List<int>? decodeInts = await generateDecode(
+    List<int>? decodeInts = await generateDecode(
       attentionMaskOrt: attentionMaskOrt,
       inputOrt: inputOrt,
       runOptions: runOptions,
       encodeOutput: encodeOutput,
       maxSummaryLength: maxSummaryLength,
-      eosTokenId: eosTokenId,
+      eosTokenId: tokenizer.getEosTokenId(),
       progress: progress,
     );
 
     if (decodeInts == null) {
       printInDebug('There was error decodeInts');
       return null;
+    }
+
+    // Remove start token
+    if (decodeInts[0] == tokenizer.getPadTokenId()) {
+      decodeInts = decodeInts.sublist(1);
+    }
+
+    // Remove start token
+    final int decodeIntsLength = decodeInts.length;
+    if (decodeInts[decodeIntsLength - 1] == tokenizer.getEosTokenId()) {
+      decodeInts = decodeInts.sublist(0, decodeIntsLength - 1);
     }
 
     final String decodeString = tokenizer.decode(decodeInts);
@@ -157,7 +157,7 @@ class SummarizerHelperMethods {
     };
 
     printInDebug('Start generatEncode');
-    final OrtSession session = await _loadSession(encoderModelLoad);
+    final OrtSession session = await _loadSession(encoderModel.biteList);
     outputs = await session.runAsync(runOptions, inputs);
     printInDebug('Done generatEncode');
 
