@@ -15,13 +15,13 @@ class Decoder {
     Function(int)? progress,
   }) async {
     final OrtSession session = await ModelHelper.loadSession(model.biteList);
-    final List<int> currentOutput = [];
+    List<List<int>> currentOutput = [];
 
     // Start with the initial decoder input
     final List<int> initialDecoderInput = [
       (inputOrt.value as List<List<int>>).first[0],
     ];
-    currentOutput.addAll(initialDecoderInput);
+    currentOutput = [initialDecoderInput];
 
     printInDebug('Start generateDecode');
 
@@ -30,7 +30,7 @@ class Decoder {
 
       // Prepare inputs for the decoder
       final inputs = {
-        'input_ids': OrtValueTensor.createTensorWithDataList([currentOutput]),
+        'input_ids': OrtValueTensor.createTensorWithDataList(currentOutput),
         'encoder_attention_mask': attentionMaskOrt,
         'encoder_hidden_states': encodeOutput,
       };
@@ -44,7 +44,7 @@ class Decoder {
         break;
       }
 
-      // Extract logits and find the next token
+      // Extract logits and calculate the next token
       final OrtValue? output0 = outputs[0];
       if (output0 == null) {
         printInDebug('Decoder output[0] is null!');
@@ -52,11 +52,18 @@ class Decoder {
       }
       final List<List<List<double>>> output0Value =
           output0.value! as List<List<List<double>>>;
-      final List<int> nextTokenIds = _npArgmax(output0Value[0]);
-      final int nextTokenId = nextTokenIds.last; // Get the last token ID
 
-      // Append the new token to the current output
-      currentOutput.add(nextTokenId);
+      // Take the last column along the second axis and find argmax
+      final List<List<double>> lastStepLogits =
+          output0Value.map((batch) => batch.last).toList();
+      final List<int> nextTokenIds = _npArgmax(lastStepLogits);
+
+      // Reshape nextTokenIds to a 2D array with shape (-1, 1)
+      final List<List<int>> nextTokenIds2D =
+          nextTokenIds.map((id) => [id]).toList();
+
+      // Horizontally stack the new token with the current output
+      currentOutput = _hStack(currentOutput, nextTokenIds2D);
 
       // Release outputs to free resources
       for (final element in outputs) {
@@ -64,7 +71,7 @@ class Decoder {
       }
 
       // Stop if the EOS token is generated
-      if (nextTokenId == eosTokenId) {
+      if (nextTokenIds.contains(eosTokenId)) {
         printInDebug('EOS token encountered. Stopping decoding.');
         break;
       }
@@ -73,10 +80,11 @@ class Decoder {
     printInDebug('Done generateDecode');
     session.release();
 
-    return currentOutput;
+    // Flatten the 2D array to return a 1D list
+    return currentOutput.expand((row) => row).toList();
   }
 
-  /// Using axis -1
+  /// Find argmax for each row (last axis)
   static List<int> _npArgmax(List<List<double>> logits) {
     final List<int> maxIndices = [];
 
@@ -95,5 +103,21 @@ class Decoder {
     }
 
     return maxIndices;
+  }
+
+  /// Horizontal stack implementation for 2D arrays
+  static List<List<int>> _hStack(
+    List<List<int>> array1,
+    List<List<int>> array2,
+  ) {
+    if (array1.length != array2.length) {
+      throw ArgumentError('Both arrays must have the same number of rows.');
+    }
+
+    final List<List<int>> result = [];
+    for (int i = 0; i < array1.length; i++) {
+      result.add([...array1[i], ...array2[i]]);
+    }
+    return result;
   }
 }
