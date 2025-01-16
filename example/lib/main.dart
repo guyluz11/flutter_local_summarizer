@@ -33,6 +33,7 @@ class _TextSummarizationState extends State<TextSummarization> {
         await summarizerHelperMethods.flasscoSummarize(
       text ?? getLongText,
       progress: progress,
+      maxSummaryLength: 100,
     );
 
     setState(() {

@@ -1,11 +1,11 @@
 import 'package:flutter_local_summarizer/src/common_functions.dart';
 import 'package:flutter_local_summarizer/src/model/model.dart';
 import 'package:flutter_local_summarizer/src/model/model_helper.dart';
+import 'package:flutter_local_summarizer/src/tokenizer.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
 class Decoder {
   static Future<List<int>?> generateDecode({
-    required OrtValueTensor inputOrt,
     required OrtValueTensor attentionMaskOrt,
     required OrtValueTensor encodeOutput,
     required OrtRunOptions runOptions,
@@ -15,13 +15,9 @@ class Decoder {
     Function(int)? progress,
   }) async {
     final OrtSession session = await ModelHelper.loadSession(model.biteList);
-    List<List<int>> currentOutput = [];
-
-    // Start with the initial decoder input
-    final List<int> initialDecoderInput = [
-      (inputOrt.value as List<List<int>>).first[0],
+    List<List<int>> currentOutput = [
+      [Tokenizer().getPadTokenId()]
     ];
-    currentOutput = [initialDecoderInput];
 
     printInDebug('Start generateDecode');
 

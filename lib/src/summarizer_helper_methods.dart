@@ -34,7 +34,7 @@ class SummarizerHelperMethods {
     Function(int)? progress,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
-    final String preprocessTextVar = inputText.toLowerCase();
+    final String preprocessTextVar = inputText;
     final String? summaryOutput = await _summary(
       preprocessTextVar,
       maxSummaryLength: maxSummaryLength,
@@ -46,7 +46,7 @@ class SummarizerHelperMethods {
 
   Future<String?> _summary(
     String text, {
-    int maxSummaryLength = 70,
+    int maxSummaryLength = 80,
     Function(int)? progress,
   }) async {
     progress?.call(0);
@@ -79,6 +79,7 @@ class SummarizerHelperMethods {
       printInDebug('There was error decoding');
       return null;
     }
+
     final List<List<Float32List>> floatOutputs = _convertToFloat32(outputs);
 
     final OrtValueTensor encodeOutput =
@@ -87,7 +88,6 @@ class SummarizerHelperMethods {
     // printInDebug(outputs);
     List<int>? decodeInts = await Decoder.generateDecode(
       attentionMaskOrt: attentionMaskOrt,
-      inputOrt: inputOrt,
       runOptions: runOptions,
       encodeOutput: encodeOutput,
       maxSummaryLength: maxSummaryLength,
