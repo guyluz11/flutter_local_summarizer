@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_summarizer/src/model_handler.dart';
+import 'package:flutter_local_summarizer/src/model/model_handler.dart';
 
 class Model {
   Model({required this.url, required this.saveLocation});
