@@ -32,7 +32,7 @@ class SummarizerHelperMethods {
     String inputText, {
     int maxSummaryLength = 80,
     Function(int)? progress,
-    Function(String)? onWordGenerated,
+    Function(String)? onNextWord,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
     final String preprocessTextVar = inputText;
@@ -40,7 +40,7 @@ class SummarizerHelperMethods {
       preprocessTextVar,
       maxSummaryLength: maxSummaryLength,
       progress: progress,
-      onWordGenerated: onWordGenerated,
+      onNextWord: onNextWord,
     );
 
     return summaryOutput;
@@ -50,7 +50,7 @@ class SummarizerHelperMethods {
     String text, {
     int maxSummaryLength = 80,
     Function(int)? progress,
-    Function(String)? onWordGenerated,
+    Function(String)? onNextWord,
   }) async {
     progress?.call(0);
     final Tokenizer tokenizer = Tokenizer();
@@ -97,8 +97,8 @@ class SummarizerHelperMethods {
       eosTokenId: tokenizer.getEosTokenId(),
       progress: progress,
       model: decoderModel,
-      onWordGenerated: (int word) {
-        onWordGenerated?.call(tokenizer.decode([word]));
+      onNextWord: (int word) {
+        onNextWord?.call(tokenizer.decode([word]));
       },
     );
 

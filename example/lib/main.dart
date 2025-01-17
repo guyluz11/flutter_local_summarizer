@@ -34,7 +34,7 @@ class _TextSummarizationState extends State<TextSummarization> {
       text ?? getLongText,
       progress: progress,
       maxSummaryLength: 100,
-      onWordGenerated: onWordGenerated,
+      onNextWord: onNextWord,
     );
 
     setState(() {
@@ -42,7 +42,7 @@ class _TextSummarizationState extends State<TextSummarization> {
     });
   }
 
-  void onWordGenerated(String word) {
+  void onNextWord(String word) {
     setState(() {
       summary += word;
     });
