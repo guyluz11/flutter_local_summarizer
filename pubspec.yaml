@@ -17,7 +17,8 @@ dependencies:
     git:
       url: https://github.com/guyluz11/langchain_tiktoken.git
       ref: main
-  onnxruntime: ^1.4.1
+  onnxruntime:
+    path: ../onnxruntime_flutter
   path_provider: ^2.1.5
 
 
