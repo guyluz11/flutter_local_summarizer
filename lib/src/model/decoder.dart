@@ -13,11 +13,10 @@ class Decoder {
     required int eosTokenId,
     required Model model,
     Function(int)? progress,
+    Function(int)? onWordGenerated,
   }) async {
     final OrtSession session = await ModelHelper.loadSession(model.biteList);
-    List<List<int>> currentOutput = [
-      [Tokenizer().getPadTokenId()]
-    ];
+    final List<int> currentOutput = [Tokenizer().getPadTokenId()];
 
     printInDebug('Start generateDecode');
 
@@ -26,7 +25,7 @@ class Decoder {
 
       // Prepare inputs for the decoder
       final inputs = {
-        'input_ids': OrtValueTensor.createTensorWithDataList(currentOutput),
+        'input_ids': OrtValueTensor.createTensorWithDataList([currentOutput]),
         'encoder_attention_mask': attentionMaskOrt,
         'encoder_hidden_states': encodeOutput,
       };
@@ -46,28 +45,24 @@ class Decoder {
         printInDebug('Decoder output[0] is null!');
         break;
       }
-      final List<List<List<double>>> output0Value =
-          output0.value! as List<List<List<double>>>;
 
-      // Take the last column along the second axis and find argmax
-      final List<List<double>> lastStepLogits =
-          output0Value.map((batch) => batch.last).toList();
-      final List<int> nextTokenIds = _npArgmax(lastStepLogits);
+      final List output0ValueOld = (output0.getValue(
+        getOnlyLastElementOfFirstList: true,
+      )! as List<List<List>>)
+          .first
+          .last;
 
-      // Reshape nextTokenIds to a 2D array with shape (-1, 1)
-      final List<List<int>> nextTokenIds2D =
-          nextTokenIds.map((id) => [id]).toList();
-
-      // Horizontally stack the new token with the current output
-      currentOutput = _hStack(currentOutput, nextTokenIds2D);
-
+      // Initialize nextTokenId directly and avoid using `map` on the entire list
+      final int nextTokenId = _npArgmax(output0ValueOld);
+      onWordGenerated?.call(nextTokenId);
+      currentOutput.add(nextTokenId);
       // Release outputs to free resources
       for (final element in outputs) {
         element?.release();
       }
 
       // Stop if the EOS token is generated
-      if (nextTokenIds.contains(eosTokenId)) {
+      if (nextTokenId == eosTokenId) {
         printInDebug('EOS token encountered. Stopping decoding.');
         break;
       }
@@ -77,28 +72,21 @@ class Decoder {
     session.release();
 
     // Flatten the 2D array to return a 1D list
-    return currentOutput.expand((row) => row).toList();
+    return currentOutput;
   }
 
-  /// Find argmax for each row (last axis)
-  static List<int> _npArgmax(List<List<double>> logits) {
-    final List<int> maxIndices = [];
-
-    for (final List<double> innerList in logits) {
-      int maxIndex = 0;
-      double maxValue = innerList[0];
-
-      for (int i = 1; i < innerList.length; i++) {
-        if (innerList[i] > maxValue) {
-          maxValue = innerList[i];
-          maxIndex = i;
-        }
+// _npArgmax method definition
+  static int _npArgmax(List<dynamic> list) {
+    int maxIndex = 0;
+    double maxValue = list[0] as double;
+    for (int i = 1; i < list.length; i++) {
+      final double listI = list[i] as double;
+      if (listI > maxValue) {
+        maxValue = listI;
+        maxIndex = i;
       }
-
-      maxIndices.add(maxIndex);
     }
-
-    return maxIndices;
+    return maxIndex;
   }
 
   /// Horizontal stack implementation for 2D arrays

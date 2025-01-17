@@ -34,10 +34,17 @@ class _TextSummarizationState extends State<TextSummarization> {
       text ?? getLongText,
       progress: progress,
       maxSummaryLength: 100,
+      onWordGenerated: onWordGenerated,
     );
 
     setState(() {
       summary = summarizedText ?? 'Error summarizing';
+    });
+  }
+
+  void onWordGenerated(String word) {
+    setState(() {
+      summary += word;
     });
   }
 
