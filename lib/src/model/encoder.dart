@@ -31,7 +31,7 @@ class Encoder {
       return null;
     }
     final List<List<List<double>>> output0Value =
-        output0.value! as List<List<List<double>>>;
+        output0.getValue()! as List<List<List<double>>>;
 
     for (final element in outputs) {
       element?.release();

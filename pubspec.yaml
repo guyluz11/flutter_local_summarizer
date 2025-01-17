@@ -2,7 +2,6 @@ name: flutter_local_summarizer
 description: "Flutter package to summarize text using Falconsai/text_summarization"
 version: 0.0.1
 repository: https://github.com/guyluz11/flutter_local_summarizer
-homepage:
 
 environment:
   sdk: ^3.6.0
@@ -18,7 +17,9 @@ dependencies:
       url: https://github.com/guyluz11/langchain_tiktoken.git
       ref: main
   onnxruntime:
-    path: ../onnxruntime_flutter
+    git:
+      url: https://github.com/guyluz11/onnxruntime_flutter.git
+      ref: trying-to-increase-preformance_second
   path_provider: ^2.1.5
 
 

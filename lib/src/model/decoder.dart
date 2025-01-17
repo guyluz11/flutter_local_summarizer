@@ -13,17 +13,13 @@ class Decoder {
     required int eosTokenId,
     required Model model,
     Function(int)? progress,
+    Function(int)? onWordGenerated,
   }) async {
     final OrtSession session = await ModelHelper.loadSession(model.biteList);
-    List<int> currentOutput = [Tokenizer().getPadTokenId()];
+    final List<int> currentOutput = [Tokenizer().getPadTokenId()];
 
     printInDebug('Start generateDecode');
 
-    // Create a Stopwatch instance
-    Stopwatch stopwatch = Stopwatch();
-
-    // Start the stopwatch
-    stopwatch.start();
     for (int i = 0; i < maxSummaryLength; i++) {
       progress?.call((((i + 1) / maxSummaryLength) * 100).toInt());
 
@@ -50,11 +46,15 @@ class Decoder {
         break;
       }
 
-      final List<double> output0ValueOlde =
-          (output0.value! as List<List<List<double>>>).first.last;
+      final List output0ValueOld = (output0.getValue(
+        getOnlyLastElementOfFirstList: true,
+      )! as List<List<List>>)
+          .first
+          .last;
 
       // Initialize nextTokenId directly and avoid using `map` on the entire list
-      int nextTokenId = output0ValueOlde.first.toInt();
+      final int nextTokenId = _npArgmax(output0ValueOld);
+      onWordGenerated?.call(nextTokenId);
       currentOutput.add(nextTokenId);
       // Release outputs to free resources
       for (final element in outputs) {
@@ -68,11 +68,6 @@ class Decoder {
       }
     }
 
-    // Stop the stopwatch
-    stopwatch.stop();
-
-    // Get the elapsed time in milliseconds
-    print('Time taken: ${stopwatch.elapsedMilliseconds} milliseconds');
     printInDebug('Done generateDecode');
     session.release();
 
@@ -81,7 +76,7 @@ class Decoder {
   }
 
 // _npArgmax method definition
-  static int _npArgmax(List<double> list) {
+  static int _npArgmax(List<dynamic> list) {
     int maxIndex = 0;
     double maxValue = list[0] as double;
     for (int i = 1; i < list.length; i++) {
