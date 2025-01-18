@@ -30,7 +30,7 @@ class SummarizerHelperMethods {
 
   Future<String?> flasscoSummarize(
     String inputText, {
-    int maxSummaryLength = 80,
+    int maxSummaryLength = 300,
     Function(int)? progress,
     Function(String)? onNextWord,
   }) async {
@@ -48,7 +48,7 @@ class SummarizerHelperMethods {
 
   Future<String?> _summary(
     String text, {
-    int maxSummaryLength = 80,
+    int maxSummaryLength = 300,
     Function(int)? progress,
     Function(String)? onNextWord,
   }) async {

@@ -33,7 +33,7 @@ class _TextSummarizationState extends State<TextSummarization> {
         await summarizerHelperMethods.flasscoSummarize(
       text ?? getLongText,
       progress: progress,
-      maxSummaryLength: 100,
+      maxSummaryLength: 301,
       onNextWord: onNextWord,
     );
 
@@ -82,9 +82,15 @@ class _TextSummarizationState extends State<TextSummarization> {
                   children: [
                     const Text('Summary:', style: TextStyle(fontSize: 20)),
                     const SizedBox(height: 10, width: double.infinity),
-                    Text('Progress: $progressVar'),
+                    Row(
+                      children: [
+                        Text('Progress: $progressVar'),
+                        const SizedBox(width: 20),
+                        Text('Summery Length: ${summary.length}'),
+                      ],
+                    ),
                     const SizedBox(height: 10),
-                    Text(summary),
+                    Text(summary.replaceAll('.', '.\n')),
                   ],
                 ),
               ),
