@@ -30,27 +30,32 @@ class SummarizerHelperMethods {
 
   Future<String?> flasscoSummarize(
     String inputText, {
-    int maxSummaryLength = 80,
+    int maxSummaryLength = 300,
     Function(int)? progress,
-    Function(String)? onWordGenerated,
+    Function(String)? onNextWord,
   }) async {
     // final String preprocessTextVar = _preprocessText(inputText);
-    final String preprocessTextVar = inputText;
-    final String? summaryOutput = await _summary(
-      preprocessTextVar,
-      maxSummaryLength: maxSummaryLength,
-      progress: progress,
-      onWordGenerated: onWordGenerated,
-    );
+    final List<String> preprocessTextVar = chunkText(inputText, 512);
 
-    return summaryOutput;
+    final StringBuffer summaryBuffer = StringBuffer();
+    for (final String textChunk in preprocessTextVar) {
+      final String? chunkOutput = await _summary(
+        textChunk,
+        maxSummaryLength: maxSummaryLength,
+        progress: progress,
+        onNextWord: onNextWord,
+      );
+      summaryBuffer.write(chunkOutput ?? '');
+    }
+
+    return summaryBuffer.toString();
   }
 
   Future<String?> _summary(
     String text, {
-    int maxSummaryLength = 80,
+    int maxSummaryLength = 300,
     Function(int)? progress,
-    Function(String)? onWordGenerated,
+    Function(String)? onNextWord,
   }) async {
     progress?.call(0);
     final Tokenizer tokenizer = Tokenizer();
@@ -97,8 +102,8 @@ class SummarizerHelperMethods {
       eosTokenId: tokenizer.getEosTokenId(),
       progress: progress,
       model: decoderModel,
-      onWordGenerated: (int word) {
-        onWordGenerated?.call(tokenizer.decode([word]));
+      onNextWord: (int word) {
+        onNextWord?.call(tokenizer.decode([word]));
       },
     );
 
@@ -149,7 +154,47 @@ class SummarizerHelperMethods {
     }).toList();
   }
 
-  // String _preprocessText(String text) {
+  List<String> chunkText(String text, int chunkSize) {
+    final List<String> chunks = [];
+    int start = 0;
+
+    while (start < text.length) {
+      // Determine the end of the chunk (we'll adjust this based on the conditions below)
+      int end = start + chunkSize;
+
+      // Ensure the end index does not exceed the string length
+      if (end > text.length) {
+        end = text.length;
+      }
+
+      // Get the chunk (substring) from start to end
+      String chunk = text.substring(start, end);
+
+      // Find the last space before the chunk end
+      int lastSpace = chunk.lastIndexOf(' ');
+
+      // If a space exists and it's not the last character, adjust the chunk to end at the space
+      if (lastSpace != -1 && lastSpace < chunk.length - 1) {
+        end = start + lastSpace + 1; // Adjust to the last space
+        chunk = text.substring(start, end); // Update the chunk
+      }
+
+      // Remove the last character if it is a space
+      if (chunk.endsWith(' ')) {
+        chunk = chunk.substring(0, chunk.length - 1);
+      }
+
+      // Add the chunk to the list
+      chunks.add(chunk);
+
+      // Update the start index for the next chunk
+      start = end;
+    }
+
+    return chunks;
+  }
+
+// String _preprocessText(String text) {
   //   // Remove consecutive punctuation (e.g., `...,`)
   //   String tempText = text.replaceAll(RegExp('[,.]{2,}'), ' ');
   //

@@ -26,15 +26,15 @@ class _TextSummarizationState extends State<TextSummarization> {
 
   Future getSummary({String? text}) async {
     setState(() {
-      summary = 'Generating summary...';
+      summary = 'Generating Summary:\n';
     });
 
     final String? summarizedText =
         await summarizerHelperMethods.flasscoSummarize(
       text ?? getLongText,
       progress: progress,
-      maxSummaryLength: 100,
-      onWordGenerated: onWordGenerated,
+      maxSummaryLength: 301,
+      onNextWord: onNextWord,
     );
 
     setState(() {
@@ -42,7 +42,7 @@ class _TextSummarizationState extends State<TextSummarization> {
     });
   }
 
-  void onWordGenerated(String word) {
+  void onNextWord(String word) {
     setState(() {
       summary += word;
     });
@@ -82,9 +82,15 @@ class _TextSummarizationState extends State<TextSummarization> {
                   children: [
                     const Text('Summary:', style: TextStyle(fontSize: 20)),
                     const SizedBox(height: 10, width: double.infinity),
-                    Text('Progress: $progressVar'),
+                    Row(
+                      children: [
+                        Text('Progress: $progressVar'),
+                        const SizedBox(width: 20),
+                        Text('Summery Length: ${summary.length}'),
+                      ],
+                    ),
                     const SizedBox(height: 10),
-                    Text(summary),
+                    Text(summary.replaceAll('.', '.\n')),
                   ],
                 ),
               ),

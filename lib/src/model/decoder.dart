@@ -13,7 +13,7 @@ class Decoder {
     required int eosTokenId,
     required Model model,
     Function(int)? progress,
-    Function(int)? onWordGenerated,
+    Function(int)? onNextWord,
   }) async {
     final OrtSession session = await ModelHelper.loadSession(model.biteList);
     final List<int> currentOutput = [Tokenizer().getPadTokenId()];
@@ -54,7 +54,7 @@ class Decoder {
 
       // Initialize nextTokenId directly and avoid using `map` on the entire list
       final int nextTokenId = _npArgmax(output0ValueOld);
-      onWordGenerated?.call(nextTokenId);
+      onNextWord?.call(nextTokenId);
       currentOutput.add(nextTokenId);
       // Release outputs to free resources
       for (final element in outputs) {
@@ -87,21 +87,5 @@ class Decoder {
       }
     }
     return maxIndex;
-  }
-
-  /// Horizontal stack implementation for 2D arrays
-  static List<List<int>> _hStack(
-    List<List<int>> array1,
-    List<List<int>> array2,
-  ) {
-    if (array1.length != array2.length) {
-      throw ArgumentError('Both arrays must have the same number of rows.');
-    }
-
-    final List<List<int>> result = [];
-    for (int i = 0; i < array1.length; i++) {
-      result.add([...array1[i], ...array2[i]]);
-    }
-    return result;
   }
 }
