@@ -26,7 +26,7 @@ class _TextSummarizationState extends State<TextSummarization> {
 
   Future getSummary({String? text}) async {
     setState(() {
-      summary = 'Generating summary...';
+      summary = 'Generating Summary:\n';
     });
 
     final String? summarizedText =
